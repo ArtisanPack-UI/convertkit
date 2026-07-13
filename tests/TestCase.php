@@ -60,5 +60,27 @@ abstract class TestCase extends BaseTestCase
             'prefix'                  => '',
             'foreign_key_constraints' => true,
         ] );
+
+        // ConvertKit test defaults. Retries=0 so tests don't burn wall time on
+        // retryable statuses unless a specific test opts in.
+        $app['config']->set( 'convertkit.api_key', 'test-key' );
+        $app['config']->set( 'convertkit.base_url', 'https://api.kit.com/v4' );
+        $app['config']->set( 'convertkit.retries', 0 );
+        $app['config']->set( 'convertkit.retry_delay', 0 );
+        $app['config']->set( 'convertkit.max_backoff', 30_000 );
+        $app['config']->set( 'convertkit.max_retry_after', 60 );
+        $app['config']->set( 'convertkit.allow_insecure_http', false );
+        $app['config']->set( 'convertkit.cache.store', 'array' );
+        $app['config']->set( 'convertkit.cache.forms_ttl', 3600 );
+        $app['config']->set( 'convertkit.cache.tags_ttl', 3600 );
+        $app['config']->set( 'convertkit.cache.fields_ttl', 3600 );
+
+        // Forms integration + feed admin defaults for tests.
+        $app['config']->set( 'convertkit.forms_integration.enabled', false );
+        $app['config']->set( 'convertkit.forms_integration.form_model', Stubs\FormSubmissionStub::class );
+        $app['config']->set( 'convertkit.forms_integration.form_submitted_event', Stubs\FormSubmittedStub::class );
+        $app['config']->set( 'convertkit.feed_admin.route_prefix', 'admin/convertkit' );
+        $app['config']->set( 'convertkit.feed_admin.middleware', [] );
+        $app['config']->set( 'convertkit.feed_admin.gate_ability', 'manage-convertkit-feeds' );
     }
 }
