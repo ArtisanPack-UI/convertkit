@@ -139,4 +139,30 @@ return [
         'gate_ability' => env( 'CONVERTKIT_FEED_ADMIN_ABILITY', 'manage-convertkit-feeds' ),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Public Subscribe REST Endpoint
+    |--------------------------------------------------------------------------
+    |
+    | Endpoint devs point their front-end subscribe forms at. Because this
+    | endpoint is public by design (an email-capture form), rate limiting is
+    | applied on top of any middleware configured here.
+    |
+    | - route_prefix: URL prefix for the subscribe endpoint (default:
+    |   `convertkit`, so the route is `POST /convertkit/subscribers`).
+    | - middleware: middleware stack applied before the throttle limiter.
+    |   Empty by default so the endpoint works with API tokens or nothing.
+    | - throttle: max attempts + decay minutes for the per-IP rate limiter.
+    |
+    */
+
+    'subscribe' => [
+        'route_prefix' => env( 'CONVERTKIT_SUBSCRIBE_PREFIX', 'convertkit' ),
+        'middleware'   => [],
+        'throttle'     => [
+            'max_attempts'   => (int) env( 'CONVERTKIT_SUBSCRIBE_MAX_ATTEMPTS', 10 ),
+            'decay_minutes'  => (int) env( 'CONVERTKIT_SUBSCRIBE_DECAY_MINUTES', 1 ),
+        ],
+    ],
+
 ];

@@ -18,9 +18,11 @@ declare( strict_types=1 );
 namespace ArtisanPackUI\ConvertKit;
 
 use ArtisanPackUI\ConvertKit\Api\Client;
+use ArtisanPackUI\ConvertKit\Console\FeedsCommand;
 use ArtisanPackUI\ConvertKit\Console\SyncCommand;
 use ArtisanPackUI\ConvertKit\Console\TestCommand;
 use ArtisanPackUI\ConvertKit\Http\Controllers\FeedController;
+use ArtisanPackUI\ConvertKit\Http\Controllers\SubscribeController;
 use ArtisanPackUI\ConvertKit\Listeners\HandleFormSubmittedForKit;
 use ArtisanPackUI\ConvertKit\Models\KitFeed;
 use Illuminate\Contracts\Cache\Factory as CacheFactory;
@@ -95,6 +97,7 @@ class ConvertKitServiceProvider extends ServiceProvider
         $this->loadMigrationsFrom( __DIR__ . '/../database/migrations' );
 
         $this->registerFeedRoutes();
+        $this->registerSubscribeRoutes();
         $this->registerFormsIntegration();
 
         if ( $this->app->runningInConsole() ) {
@@ -109,6 +112,7 @@ class ConvertKitServiceProvider extends ServiceProvider
             $this->commands( [
                 TestCommand::class,
                 SyncCommand::class,
+                FeedsCommand::class,
             ] );
         }
     }
@@ -143,6 +147,46 @@ class ConvertKitServiceProvider extends ServiceProvider
             $router->get( 'feeds/{convertkitFeed}', [ FeedController::class, 'show' ] )->name( 'convertkit.feeds.show' );
             $router->match( [ 'put', 'patch' ], 'feeds/{convertkitFeed}', [ FeedController::class, 'update' ] )->name( 'convertkit.feeds.update' );
             $router->delete( 'feeds/{convertkitFeed}', [ FeedController::class, 'destroy' ] )->name( 'convertkit.feeds.destroy' );
+            $router->post( 'feeds/{convertkitFeed}/test', [ FeedController::class, 'test' ] )->name( 'convertkit.feeds.test' );
+        } );
+    }
+
+    protected function registerSubscribeRoutes(): void
+    {
+        $config = $this->app->make( 'config' );
+
+        $prefix       = (string) $config->get( 'convertkit.subscribe.route_prefix', 'convertkit' );
+        $middleware   = (array) $config->get( 'convertkit.subscribe.middleware', [] );
+        $maxAttempts  = (int) $config->get( 'convertkit.subscribe.throttle.max_attempts', 10 );
+        $decayMinutes = (int) $config->get( 'convertkit.subscribe.throttle.decay_minutes', 1 );
+
+        // Prepend Laravel's per-IP throttle so a public endpoint can't
+        // be turned into a spam relay. Consumers can raise / lower the
+        // window via config but cannot remove it — unless they've
+        // already supplied their own `throttle:*` entry in
+        // `subscribe.middleware`, in which case we defer to it rather
+        // than stacking two competing limiters on one route.
+        $hasOwnThrottle = false;
+
+        foreach ( $middleware as $entry ) {
+            if ( is_string( $entry ) && str_starts_with( $entry, 'throttle:' ) ) {
+                $hasOwnThrottle = true;
+                break;
+            }
+        }
+
+        if ( ! $hasOwnThrottle ) {
+            $middleware = array_values( array_merge(
+                [ "throttle:{$maxAttempts},{$decayMinutes}" ],
+                $middleware,
+            ) );
+        }
+
+        Route::group( [
+            'prefix'     => $prefix,
+            'middleware' => $middleware,
+        ], function ( Router $router ): void {
+            $router->post( 'subscribers', SubscribeController::class )->name( 'convertkit.subscribers.store' );
         } );
     }
 

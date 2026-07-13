@@ -14,14 +14,19 @@ declare( strict_types=1 );
 namespace ArtisanPackUI\ConvertKit\Http\Controllers;
 
 use ArtisanPackUI\ConvertKit\Http\Requests\KitFeedStoreRequest;
+use ArtisanPackUI\ConvertKit\Http\Requests\KitFeedTestRequest;
 use ArtisanPackUI\ConvertKit\Http\Requests\KitFeedUpdateRequest;
 use ArtisanPackUI\ConvertKit\Http\Resources\KitFeedResource;
 use ArtisanPackUI\ConvertKit\Models\KitFeed;
+use ArtisanPackUI\ConvertKit\Support\ConditionalLogicEvaluator;
+use ArtisanPackUI\ConvertKit\Support\FieldMapper;
+use ArtisanPackUI\ConvertKit\Support\FieldMapperException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 
 /**
  * REST endpoints for feed management. Devs use these to build their own
@@ -92,6 +97,62 @@ class FeedController extends Controller
         $convertkitFeed->delete();
 
         return response()->json( null, 204 );
+    }
+
+    /**
+     * Dry-run a feed against a sample submission payload.
+     *
+     * Runs the same evaluator + mapper the queued job uses, but returns
+     * the outcome inline instead of hitting Kit. Devs use this to sanity
+     * check a feed's field map + conditional logic while iterating on
+     * configuration.
+     */
+    public function test(
+        KitFeedTestRequest $request,
+        KitFeed $convertkitFeed,
+        ConditionalLogicEvaluator $evaluator,
+        FieldMapper $mapper,
+    ): JsonResponse {
+        $this->authorizeAction( $convertkitFeed );
+
+        /** @var array<string, mixed> $values */
+        $values = $request->validated( 'values' ) ?? [];
+
+        if ( ! $evaluator->evaluate( $convertkitFeed->conditional_logic, $values ) ) {
+            return response()->json( [
+                'would_send' => false,
+                'reason'     => 'conditional_logic',
+                'payload'    => null,
+            ] );
+        }
+
+        try {
+            $payload = $mapper->mapValues(
+                $values,
+                is_array( $convertkitFeed->field_map ) ? $convertkitFeed->field_map : [],
+            );
+        } catch ( FieldMapperException $e ) {
+            // Log the underlying exception message server-side but return
+            // a stable, non-leaking reason token to the client. Prevents
+            // future mapper exceptions from surfacing internal detail
+            // (resolved values, field paths, etc.) through the response.
+            Log::warning( 'ConvertKit feed dry-run field_map error', [
+                'feed_id' => $convertkitFeed->id,
+                'error'   => $e->getMessage(),
+            ] );
+
+            return response()->json( [
+                'would_send' => false,
+                'reason'     => 'field_map',
+                'payload'    => null,
+            ] );
+        }
+
+        return response()->json( [
+            'would_send' => true,
+            'reason'     => null,
+            'payload'    => $payload,
+        ] );
     }
 
     /**
