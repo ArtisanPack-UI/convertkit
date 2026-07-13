@@ -59,28 +59,28 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Laravel 12 (testbench ^10.2, pest-plugin-laravel ^3.8)
+          # Laravel 12 (testbench ^10.2, pest-plugin-laravel ^3.2)
           - php: '8.2'
             laravel: '12'
             testbench: '^10.2'
-            pest-plugin-laravel: '^3.8'
+            pest-plugin-laravel: '^3.2'
           - php: '8.3'
             laravel: '12'
             testbench: '^10.2'
-            pest-plugin-laravel: '^3.8'
+            pest-plugin-laravel: '^3.2'
           - php: '8.4'
             laravel: '12'
             testbench: '^10.2'
-            pest-plugin-laravel: '^3.8'
-          # Laravel 13 (testbench ^11.0, pest-plugin-laravel ^4.0) — requires PHP 8.3+
+            pest-plugin-laravel: '^3.2'
+          # Laravel 13 (testbench ^11.0, pest-plugin-laravel ^4.1) — requires PHP 8.3+
           - php: '8.3'
             laravel: '13'
             testbench: '^11.0'
-            pest-plugin-laravel: '^4.0'
+            pest-plugin-laravel: '^4.1'
           - php: '8.4'
             laravel: '13'
             testbench: '^11.0'
-            pest-plugin-laravel: '^4.0'
+            pest-plugin-laravel: '^4.1'
 
     steps:
       - uses: actions/checkout@v4
