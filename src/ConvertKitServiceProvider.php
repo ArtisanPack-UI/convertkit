@@ -20,9 +20,15 @@ namespace ArtisanPackUI\ConvertKit;
 use ArtisanPackUI\ConvertKit\Api\Client;
 use ArtisanPackUI\ConvertKit\Console\SyncCommand;
 use ArtisanPackUI\ConvertKit\Console\TestCommand;
+use ArtisanPackUI\ConvertKit\Http\Controllers\FeedController;
+use ArtisanPackUI\ConvertKit\Listeners\HandleFormSubmittedForKit;
+use ArtisanPackUI\ConvertKit\Models\KitFeed;
 use Illuminate\Contracts\Cache\Factory as CacheFactory;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Http\Client\Factory as HttpFactory;
+use Illuminate\Routing\Router;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -86,15 +92,73 @@ class ConvertKitServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        $this->loadMigrationsFrom( __DIR__ . '/../database/migrations' );
+
+        $this->registerFeedRoutes();
+        $this->registerFormsIntegration();
+
         if ( $this->app->runningInConsole() ) {
             $this->publishes( [
                 __DIR__ . '/../config/convertkit.php' => config_path( 'convertkit.php' ),
             ], 'convertkit-config' );
+
+            $this->publishes( [
+                __DIR__ . '/../database/migrations' => database_path( 'migrations' ),
+            ], 'convertkit-migrations' );
 
             $this->commands( [
                 TestCommand::class,
                 SyncCommand::class,
             ] );
         }
+    }
+
+    protected function registerFeedRoutes(): void
+    {
+        $config = $this->app->make( 'config' );
+
+        $prefix     = (string) $config->get( 'convertkit.feed_admin.route_prefix', 'admin/convertkit' );
+        $middleware = (array) $config->get( 'convertkit.feed_admin.middleware', [] );
+
+        // SubstituteBindings must be in the stack for implicit route
+        // model binding to resolve `{convertkitFeed}` into a `KitFeed`.
+        // Prepend it so a consumer who overrides `middleware` (e.g. for
+        // an API context without the `web` group) still gets binding.
+        $middleware = array_values( array_unique( array_merge(
+            [ \Illuminate\Routing\Middleware\SubstituteBindings::class ],
+            $middleware,
+        ) ) );
+
+        // Route parameter is scoped to this package (`{convertkitFeed}`)
+        // rather than the generic `{feed}` so we cannot collide with an
+        // app or another package that also binds `feed`. Laravel's
+        // implicit binding resolves it from the `KitFeed` type-hint on
+        // the controller — no explicit `Route::bind` needed.
+        Route::group( [
+            'prefix'     => $prefix,
+            'middleware' => $middleware,
+        ], function ( Router $router ): void {
+            $router->get( 'feeds', [ FeedController::class, 'index' ] )->name( 'convertkit.feeds.index' );
+            $router->post( 'feeds', [ FeedController::class, 'store' ] )->name( 'convertkit.feeds.store' );
+            $router->get( 'feeds/{convertkitFeed}', [ FeedController::class, 'show' ] )->name( 'convertkit.feeds.show' );
+            $router->match( [ 'put', 'patch' ], 'feeds/{convertkitFeed}', [ FeedController::class, 'update' ] )->name( 'convertkit.feeds.update' );
+            $router->delete( 'feeds/{convertkitFeed}', [ FeedController::class, 'destroy' ] )->name( 'convertkit.feeds.destroy' );
+        } );
+    }
+
+    protected function registerFormsIntegration(): void
+    {
+        $config = $this->app->make( 'config' );
+
+        $eventClass = ltrim( (string) $config->get( 'convertkit.forms_integration.form_submitted_event' ), '\\' );
+
+        if ( '' === $eventClass ) {
+            return;
+        }
+
+        // Always subscribe — the listener no-ops when
+        // `forms_integration.enabled` is false, so config toggles at
+        // runtime without needing to rebuild the provider.
+        Event::listen( $eventClass, [ HandleFormSubmittedForKit::class, 'handle' ] );
     }
 }

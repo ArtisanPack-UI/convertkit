@@ -74,5 +74,13 @@ abstract class TestCase extends BaseTestCase
         $app['config']->set( 'convertkit.cache.forms_ttl', 3600 );
         $app['config']->set( 'convertkit.cache.tags_ttl', 3600 );
         $app['config']->set( 'convertkit.cache.fields_ttl', 3600 );
+
+        // Forms integration + feed admin defaults for tests.
+        $app['config']->set( 'convertkit.forms_integration.enabled', false );
+        $app['config']->set( 'convertkit.forms_integration.form_model', Stubs\FormSubmissionStub::class );
+        $app['config']->set( 'convertkit.forms_integration.form_submitted_event', Stubs\FormSubmittedStub::class );
+        $app['config']->set( 'convertkit.feed_admin.route_prefix', 'admin/convertkit' );
+        $app['config']->set( 'convertkit.feed_admin.middleware', [] );
+        $app['config']->set( 'convertkit.feed_admin.gate_ability', 'manage-convertkit-feeds' );
     }
 }

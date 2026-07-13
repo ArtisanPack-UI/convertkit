@@ -89,4 +89,54 @@ return [
         'fields_ttl' => (int) env( 'CONVERTKIT_FIELDS_TTL', 3600 ),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Forms Package Integration
+    |--------------------------------------------------------------------------
+    |
+    | Wires this package to `artisanpack-ui/forms` so a `FormSubmitted` event
+    | triggers evaluation of `KitFeed`s and dispatches queued Kit calls. All
+    | coupling is config-driven so the forms package remains an optional peer.
+    |
+    | - enabled: master switch. When false, no listener is registered and no
+    |   feeds fire. Keep off if the forms package is not installed.
+    | - form_model: FQCN of the forms package Form model. Used for the
+    |   `KitFeed::form()` relationship and by feed validation.
+    | - form_submitted_event: FQCN of the event dispatched by the forms
+    |   package when a submission is stored. Subscribed via string binding
+    |   so the class only needs to exist at runtime, not at package boot.
+    | - queue_connection / queue: optional overrides for the ProcessKitFeed
+    |   job so ops can route Kit work to a dedicated queue.
+    |
+    */
+
+    'forms_integration' => [
+        'enabled'              => (bool) env( 'CONVERTKIT_FORMS_INTEGRATION', false ),
+        'form_model'           => env( 'CONVERTKIT_FORMS_MODEL', '\\ArtisanPackUI\\Forms\\Models\\Form' ),
+        'form_submitted_event' => env( 'CONVERTKIT_FORM_SUBMITTED_EVENT', '\\ArtisanPackUI\\Forms\\Events\\FormSubmitted' ),
+        'queue_connection'     => env( 'CONVERTKIT_QUEUE_CONNECTION' ),
+        'queue'                => env( 'CONVERTKIT_QUEUE' ),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Feed Admin REST API
+    |--------------------------------------------------------------------------
+    |
+    | Configuration for the feed CRUD endpoints. This package does not ship a
+    | UI — devs build one in Livewire/React/Vue on top of these endpoints.
+    |
+    | - route_prefix: URL prefix under which feed routes are mounted.
+    | - middleware: middleware stack applied to feed routes.
+    | - gate_ability: Gate ability checked before every feed action. Define
+    |   your own `Gate::define()` for this ability in your app.
+    |
+    */
+
+    'feed_admin' => [
+        'route_prefix' => env( 'CONVERTKIT_FEED_ADMIN_PREFIX', 'admin/convertkit' ),
+        'middleware'   => [ 'web', 'auth' ],
+        'gate_ability' => env( 'CONVERTKIT_FEED_ADMIN_ABILITY', 'manage-convertkit-feeds' ),
+    ],
+
 ];

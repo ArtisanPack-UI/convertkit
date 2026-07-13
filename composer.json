@@ -14,7 +14,8 @@
   ],
   "autoload": {
     "psr-4": {
-      "ArtisanPackUI\\ConvertKit\\": "src/"
+      "ArtisanPackUI\\ConvertKit\\": "src/",
+      "ArtisanPackUI\\ConvertKit\\Database\\Factories\\": "database/factories/"
     },
     "files": [
       "src/helpers.php"
