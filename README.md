@@ -410,6 +410,37 @@ Available assertions:
 
 The fake never touches the network, so tests stay hermetic.
 
+## Hooks
+
+The `SubscribeToKit` job fires three ArtisanPack UI hooks around every
+subscribe attempt — direct-form and raw-subscribers paths both flow
+through them. Register listeners with `addAction()` (from
+`artisanpack-ui/hooks`).
+
+| Hook                             | When                                 | Signature                                    |
+|----------------------------------|--------------------------------------|----------------------------------------------|
+| `ap.convertkit.subscribing`      | Immediately before the Kit API call. | `(string $email, array $attributes)`         |
+| `ap.convertkit.subscribed`       | After a successful subscribe.        | `(string $email, array $response)`           |
+| `ap.convertkit.subscribeFailed`  | On any subscribe exception.          | `(string $email, Throwable $exception)`      |
+
+`$attributes` is the payload map about to be sent to Kit:
+`first_name`, `fields`, `tag_ids` (already capped at
+`SubscribeToKit::MAX_TAGS_PER_JOB = 50`), and `kit_form_id`.
+
+`$response` is the Kit subscriber decoded to an array: `id`, `email`,
+`state`, `first_name`, `created_at`, `fields`.
+
+`subscribeFailed` fires per `handle()` invocation, so a retryable
+transient failure (rate limit, 5xx) that the queue will retry emits one
+hook per attempt. Inspect the exception type to distinguish transient
+from terminal.
+
+```php
+addAction( 'ap.convertkit.subscribed', function ( string $email, array $response ): void {
+    Log::info( 'Kit subscribed', [ 'email' => $email, 'subscriber_id' => $response['id'] ] );
+} );
+```
+
 ## Contributing
 
 As an open source project, this package is open to contributions from
