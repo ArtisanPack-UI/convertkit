@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-07-21
+
+### Added
+
+- **Subscribe lifecycle hooks** — the `SubscribeToKit` job now fires
+  three ArtisanPack UI hooks (`artisanpack-ui/hooks: ^1.3`):
+  - `ap.convertkit.subscribing` before the Kit API call, receiving
+    `(string $email, array $attributes)` where `$attributes` is the
+    payload map (`first_name`, `fields`, `tag_ids`, `kit_form_id`).
+  - `ap.convertkit.subscribed` after a successful subscribe, receiving
+    `(string $email, array $response)` where `$response` is the
+    subscriber decoded to an array.
+  - `ap.convertkit.subscribeFailed` on any exception, receiving
+    `(string $email, Throwable $exception)`. Fires per attempt, so
+    retryable failures emit one hook per retry.
+
+### Changed
+
+- `artisanpack-ui/hooks: ^1.3` is now a required runtime dependency.
+
 ## [1.0.0] - 2026-07-13
 
 Initial release. Full Kit v4 API integration for Laravel 10, 11, 12, and 13.
