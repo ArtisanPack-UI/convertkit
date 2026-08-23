@@ -14,6 +14,7 @@ declare( strict_types=1 );
 namespace ArtisanPackUI\ConvertKit;
 
 use ArtisanPackUI\ConvertKit\Api\Client;
+use ArtisanPackUI\ConvertKit\Api\Endpoints\AccountEndpoint;
 use ArtisanPackUI\ConvertKit\Api\Endpoints\CustomFieldsEndpoint;
 use ArtisanPackUI\ConvertKit\Api\Endpoints\FormsEndpoint;
 use ArtisanPackUI\ConvertKit\Api\Endpoints\SubscribersEndpoint;
@@ -78,6 +79,16 @@ class EndpointFactory
             $this->cache(),
             $this->cacheKey( 'fields' ),
             (int) $this->config->get( 'convertkit.cache.fields_ttl', 3600 ),
+        );
+    }
+
+    public function account(): AccountEndpoint
+    {
+        return new AccountEndpoint(
+            $this->client,
+            $this->cache(),
+            $this->cacheKey( 'stats' ),
+            (int) $this->config->get( 'convertkit.cache.stats_ttl', 900 ),
         );
     }
 

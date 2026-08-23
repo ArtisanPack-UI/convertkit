@@ -2,8 +2,10 @@
 
 declare( strict_types=1 );
 
+use ArtisanPackUI\ConvertKit\Api\DTOs\GrowthStats;
 use ArtisanPackUI\ConvertKit\Facades\ConvertKit;
 use ArtisanPackUI\ConvertKit\Testing\FakeConvertKit;
+use Illuminate\Support\Facades\Http;
 use PHPUnit\Framework\AssertionFailedError;
 
 it( 'swaps the container binding and returns a FakeConvertKit', function (): void {
@@ -72,6 +74,20 @@ it( 'fails assertSubscribed when the form id does not match', function (): void 
 
     expect( fn () => $fake->assertSubscribed( 'a@b.co', 222 ) )
         ->toThrow( AssertionFailedError::class );
+} );
+
+it( 'exposes a fake account endpoint that never hits the network', function (): void {
+    ConvertKit::fake();
+    Http::fake();
+
+    $stats  = convertkit()->account()->stats();
+    $series = convertkit()->account()->growthSeries( '2023-01-01', '2023-01-31' );
+
+    expect( $stats )->toBeInstanceOf( GrowthStats::class );
+    expect( $stats->subscribers )->toBe( 0 );
+    expect( $series )->toBe( [] );
+
+    Http::assertNothingSent();
 } );
 
 it( 'fails assertTagged for an unrecorded tag', function (): void {

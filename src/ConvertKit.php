@@ -17,6 +17,7 @@ declare( strict_types=1 );
 namespace ArtisanPackUI\ConvertKit;
 
 use ArtisanPackUI\ConvertKit\Api\Client;
+use ArtisanPackUI\ConvertKit\Api\Endpoints\AccountEndpoint;
 use ArtisanPackUI\ConvertKit\Api\Endpoints\CustomFieldsEndpoint;
 use ArtisanPackUI\ConvertKit\Api\Endpoints\FormsEndpoint;
 use ArtisanPackUI\ConvertKit\Api\Endpoints\SubscribersEndpoint;
@@ -42,6 +43,8 @@ class ConvertKit
     protected ?TagsEndpoint $tags = null;
 
     protected ?CustomFieldsEndpoint $customFields = null;
+
+    protected ?AccountEndpoint $account = null;
 
     public function __construct( protected EndpointFactory $factory )
     {
@@ -85,5 +88,13 @@ class ConvertKit
     public function customFields(): CustomFieldsEndpoint
     {
         return $this->customFields ??= $this->factory->customFields();
+    }
+
+    /**
+     * Account stats endpoint.
+     */
+    public function account(): AccountEndpoint
+    {
+        return $this->account ??= $this->factory->account();
     }
 }
