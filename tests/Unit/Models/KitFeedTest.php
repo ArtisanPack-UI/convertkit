@@ -22,6 +22,28 @@ it( 'casts JSON columns to arrays', function (): void {
     expect( $fresh->is_active )->toBeTrue();
 } );
 
+it( 'declares casts as a property so they apply on Laravel 10', function (): void {
+    // The casts() method only exists from Laravel 11 onward. Declaring
+    // casts through it silently disables every cast on Laravel 10, which
+    // composer.json still advertises as supported. Guard against a
+    // regression to the method form by requiring the $casts property.
+    $reflection = new ReflectionClass( KitFeed::class );
+
+    expect( $reflection->hasProperty( 'casts' ) )->toBeTrue();
+    expect( $reflection->getProperty( 'casts' )->getDeclaringClass()->getName() )
+        ->toBe( KitFeed::class );
+
+    $method = $reflection->getMethod( 'casts' );
+    expect( $method->getDeclaringClass()->getName() )->not->toBe( KitFeed::class );
+
+    expect( ( new KitFeed() )->getCasts() )->toMatchArray( [
+        'kit_tag_ids'       => 'array',
+        'field_map'         => 'array',
+        'conditional_logic' => 'array',
+        'is_active'         => 'boolean',
+    ] );
+} );
+
 it( 'stores conditional_logic as null when unset', function (): void {
     $feed = KitFeed::factory()->create( [ 'conditional_logic' => null ] );
 
