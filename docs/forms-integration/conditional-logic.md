@@ -31,10 +31,24 @@ Each condition compares the submission's value for `field` (using the submission
 | `not_equals` | Inverse of `equals`. |
 | `contains` | Substring check on the actual value. For array values, checks each item. |
 | `not_contains` | Inverse of `contains`. |
+| `starts_with` | Actual value begins with `value` (after normalization). |
+| `ends_with` | Actual value ends with `value` (after normalization). |
 | `is_empty` | Actual value is `null`, empty string (after `trim`), or empty array. |
 | `is_not_empty` | Inverse of `is_empty`. |
+| `greater_than` | Numeric `>`. Both sides must be numeric, else the condition fails. |
+| `less_than` | Numeric `<`. Both sides must be numeric, else the condition fails. |
+| `greater_or_equal` | Numeric `>=`. Both sides must be numeric, else the condition fails. |
+| `less_or_equal` | Numeric `<=`. Both sides must be numeric, else the condition fails. |
+| `in` | Actual value equals one of `value`'s items (array, or a comma-separated string). |
+| `not_in` | Inverse of `in`. |
+| `checked` | Actual value is truthy (`true`, `1`, `"yes"`, `"on"`, `"checked"`, or any non-zero int). |
+| `unchecked` | Inverse of `checked`. |
+| `includes` | Actual value is an array containing an item equal to `value`. |
+| `not_includes` | Inverse of `includes`. |
 
-The full canonical list also lives on `ConditionalLogicEvaluator::OPERATORS` — used by the [feed store request](REST-API-Feed-Admin) to reject unknown operators at validation time.
+The full canonical list also lives on `ConditionalLogicEvaluator::OPERATORS` — the source of truth shared by the evaluator and the [feed store/update requests](REST-API-Feed-Admin), which reject unknown operators at validation time. Because both read the same constant, the accepted operators can never drift from the evaluated ones.
+
+`in`/`not_in` accept `value` either as an array (`["pro", "team"]`) or as a comma-separated string (`"pro, team"`, trimmed per item). `includes`/`not_includes` are the array-membership counterparts to `contains` for multi-select fields: `includes` matches only on whole-item equality, where `contains` also matches substrings within items.
 
 ## Value normalization
 

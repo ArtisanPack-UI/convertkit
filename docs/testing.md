@@ -79,7 +79,48 @@ Every fake endpoint method returns a plausible-looking `Subscriber` DTO so downs
 - `subscribers()->find(id)` returns a `Subscriber` with that id and empty email.
 - `subscribers()->findByEmail(email)` returns a matching subscriber if you recorded one via `create`; otherwise `null`.
 - `subscribers()->unsubscribe(id)` returns a `Subscriber` with `state = 'cancelled'`.
-- List endpoints (`list()`, `refresh()`) return `[]`.
+- The reference-data list endpoints (`forms()`, `tags()`, `customFields()`) return `[]` from `list()` / `refresh()`.
+- The `account()` and `broadcasts()` reads return zero-valued or empty results by default, or whatever you seed — see below.
+
+## Stats and broadcasts fixtures
+
+`account()` and `broadcasts()` are read-only endpoints, so instead of recording calls they let you **seed** what the fake returns, then **assert** that a read happened. All three seeders return the fake for chaining, and every read stays network-free — the fake still runs the same range/interval/limit validation as the real endpoint, so a malformed request throws exactly as it would in production.
+
+### Seeders
+
+```php
+use ArtisanPackUI\ConvertKit\Api\DTOs\Broadcast;
+use ArtisanPackUI\ConvertKit\Api\DTOs\BroadcastStats;
+use ArtisanPackUI\ConvertKit\Api\DTOs\GrowthStats;
+
+$fake = ConvertKit::fake()
+    // account()->stats() / refresh(): pass a GrowthStats, or the raw counts.
+    ->fakeStats( subscribers: 12_840, netNewSubscribers: 434, newSubscribers: 512, cancellations: 78 )
+    // account()->growthSeries() / refreshSeries(): points returned verbatim.
+    ->fakeGrowthSeries(
+        new GrowthStats( 12_010, 120, 140, 20, '2026-01-01', '2026-01-07' ),
+        new GrowthStats( 12_130, 120, 150, 30, '2026-01-08', '2026-01-14' ),
+    )
+    // broadcasts()->list() / refresh(): pass newest-first; each read slices to its limit.
+    ->fakeBroadcasts(
+        new Broadcast( 1, 'This week in ...', new BroadcastStats( 1284, 540, 0.42, 103, 0.08, 4, 0.003, 1.0, 'completed' ), '2026-01-14T09:00:00Z' ),
+    );
+```
+
+The requested window is echoed onto the `stats()` result at read time, so any `starting`/`ending` on a supplied `GrowthStats` is ignored. With nothing seeded, `stats()` returns zeros, `growthSeries()` returns one zero-valued point per bucket, and `broadcasts()->list()` returns `[]`.
+
+### Assertions
+
+```php
+$fake->assertStatsRequested();                                  // any window
+$fake->assertStatsRequested( '2026-01-01', '2026-03-31' );      // a specific window
+$fake->assertGrowthSeriesRequested();                           // any series
+$fake->assertGrowthSeriesRequested( '2026-01-01', '2026-03-31', 'week' );
+$fake->assertBroadcastsListed();                                // any limit
+$fake->assertBroadcastsListed( 25 );                            // a specific limit
+```
+
+Each accepts `null` for any argument to match any value. The raw read logs are also public: `$fake->statsRequests`, `$fake->growthSeriesRequests`, and `$fake->broadcastsRequests`.
 
 ## Example — a controller test
 
