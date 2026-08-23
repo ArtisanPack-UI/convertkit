@@ -27,7 +27,7 @@ foreach ( $broadcasts as $broadcast ) {
 }
 ```
 
-- `limit` defaults to `BroadcastsEndpoint::DEFAULT_LIMIT` (10) and is capped at `BroadcastsEndpoint::MAX_LIMIT` (100). Kit itself allows `per_page` up to 500, but a widget has no use for that many and an unbounded page size would balloon the cached payload — a limit below 1 or above 100 throws `InvalidArgumentException`.
+- `limit` defaults to `BroadcastsEndpoint::DEFAULT_LIMIT` (10) and is capped at `BroadcastsEndpoint::MAX_LIMIT` (100). Kit itself allows `per_page` up to 1000 (default 500), but a widget has no use for that many and an unbounded page size would balloon the cached payload — a limit below 1 or above 100 throws `InvalidArgumentException`.
 - Cache key: `{prefix}:{account}:broadcasts:{limit}` (keyed per limit so distinct page sizes don't collide). TTL: `convertkit.cache.broadcasts_ttl` (default 1 hour, override with `CONVERTKIT_BROADCASTS_TTL`).
 
 ## `refresh( int $limit = 10 ): array<int, Broadcast>`

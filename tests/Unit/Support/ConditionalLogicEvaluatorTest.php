@@ -189,6 +189,20 @@ it( 'treats non-numeric values as failing numeric comparisons', function (): voi
     expect( $this->evaluator->evaluate( $rules, [] ) )->toBeFalse();
 } );
 
+it( 'preserves integer precision past the float mantissa in numeric comparisons', function (): void {
+    // 9007199254740992 is 2^53 — the largest integer a float represents
+    // exactly. Casting either operand to float would collapse these two
+    // consecutive integers to the same value and report them equal.
+    $greater = [ 'conditions' => [ [ 'field' => 'n', 'operator' => 'greater_than', 'value' => '9007199254740992' ] ] ];
+    $less    = [ 'conditions' => [ [ 'field' => 'n', 'operator' => 'less_than', 'value' => '9007199254740993' ] ] ];
+
+    expect( $this->evaluator->evaluate( $greater, [ 'n' => '9007199254740993' ] ) )->toBeTrue();
+    expect( $this->evaluator->evaluate( $less, [ 'n' => '9007199254740992' ] ) )->toBeTrue();
+
+    // The boundary itself is not strictly greater/less than its equal.
+    expect( $this->evaluator->evaluate( $greater, [ 'n' => '9007199254740992' ] ) )->toBeFalse();
+} );
+
 it( 'evaluates in against a comma-separated list', function (): void {
     $rules = [
         'conditions' => [

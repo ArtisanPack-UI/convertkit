@@ -33,10 +33,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `BroadcastsEndpoint::MAX_LIMIT` (100). Covered by `ConvertKit::fake()` via a
   network-free `FakeBroadcastsEndpoint`.
 - **Expanded conditional logic operators** — `ConditionalLogicEvaluator` now
-  handles eighteen operators, adding `starts_with`, `ends_with`, `is_empty`,
-  `is_not_empty`, `greater_than`, `less_than`, `greater_or_equal`,
-  `less_or_equal`, `in`, `not_in`, `checked`, `unchecked`, `includes`, and
-  `not_includes` to the original four. The set is exposed as
+  handles eighteen operators, adding `starts_with`, `ends_with`,
+  `greater_than`, `less_than`, `greater_or_equal`, `less_or_equal`, `in`,
+  `not_in`, `checked`, `unchecked`, `includes`, and `not_includes` to the
+  original six. The set is exposed as
   `ConditionalLogicEvaluator::OPERATORS` and drives feed store/update request
   validation, so the accepted operators can never drift from the evaluated ones.
 - **Test fixtures for stats and broadcasts** — `ConvertKit::fake()` gains the

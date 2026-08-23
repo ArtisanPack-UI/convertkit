@@ -199,6 +199,17 @@ it( 'still validates the range for refreshSeries() on the fake', function (): vo
         ->toThrow( InvalidArgumentException::class );
 } );
 
+it( 'rejects the same invalid windows on the fake stats() as production does', function ( ?string $starting, ?string $ending ): void {
+    ConvertKit::fake();
+
+    expect( fn () => convertkit()->account()->stats( $starting, $ending ) )
+        ->toThrow( InvalidArgumentException::class );
+} )->with( [
+    'noncanonical' => [ '2023-1-1', null ],
+    'overflowed'   => [ '2023-02-30', null ],
+    'inverted'     => [ '2023-03-31', '2023-01-01' ],
+] );
+
 it( 'asserts stats and growth series were requested', function (): void {
     $fake = ConvertKit::fake();
 

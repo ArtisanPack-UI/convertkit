@@ -47,9 +47,10 @@ class BroadcastsEndpoint
 
     /**
      * Hard ceiling on how many broadcasts a single read may request. Kit
-     * caps `per_page` at 500, but a dashboard widget has no use for that many,
-     * and letting a consumer forward an unbounded user-supplied page size would
-     * balloon the cached payload. Requests past this are rejected.
+     * allows `per_page` up to 1000 ( default 500 ), but a dashboard widget has
+     * no use for that many, and letting a consumer forward an unbounded
+     * user-supplied page size would balloon the cached payload. Requests past
+     * this are rejected.
      *
      * @var int
      */

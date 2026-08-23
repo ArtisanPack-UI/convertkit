@@ -248,3 +248,34 @@ it( 'rejects a malformed date on refresh() without forwarding it to Kit', functi
 
     Http::assertNothingSent();
 } );
+
+it( 'rejects noncanonical and overflowed dates on stats() without hitting Kit', function ( string $date ): void {
+    Http::fake();
+
+    expect( fn () => app( ConvertKit::class )->account()->stats( $date ) )
+        ->toThrow( InvalidArgumentException::class );
+
+    Http::assertNothingSent();
+} )->with( [
+    'noncanonical month/day' => [ '2023-1-1' ],
+    'overflowed month'       => [ '2023-13-01' ],
+    'overflowed day'         => [ '2023-02-30' ],
+    'not a date'             => [ '2023-99-99' ],
+] );
+
+it( 'rejects an inverted window on stats() before any cache or HTTP access', function (): void {
+    Http::fake();
+
+    expect( fn () => app( ConvertKit::class )->account()->stats( '2023-03-31', '2023-01-01' ) )
+        ->toThrow( InvalidArgumentException::class );
+
+    Http::assertNothingSent();
+} );
+
+it( 'accepts a canonical window on stats()', function (): void {
+    Http::fake( [
+        'api.kit.com/v4/account/growth_stats*' => Http::response( growthStatsFixture( [ 'subscribers' => 5 ] ), 200 ),
+    ] );
+
+    expect( app( ConvertKit::class )->account()->stats( '2023-01-01', '2023-03-31' )->subscribers )->toBe( 5 );
+} );

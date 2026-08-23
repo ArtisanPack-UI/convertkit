@@ -223,8 +223,8 @@ class ConditionalLogicEvaluator
             return false;
         }
 
-        $left  = (float) $actual;
-        $right = (float) $expected;
+        $left  = $this->toNumber( $actual );
+        $right = $this->toNumber( $expected );
 
         return match ( $operator ) {
             '>'     => $left > $right,
@@ -233,6 +233,25 @@ class ConditionalLogicEvaluator
             '<='    => $left <= $right,
             default => false,
         };
+    }
+
+    /**
+     * Coerce a numeric value to `int` when it is an integer within the
+     * platform's integer range, otherwise to `float`. Casting straight to
+     * `float` would collapse large integers past 2^53 — `9007199254740993`
+     * and `9007199254740992` would compare equal — so integer-valued input is
+     * kept as an exact `int`. The round-trip guard (`=== (string) (int)`)
+     * falls back to `float` only when the value genuinely overflows `int`.
+     */
+    protected function toNumber( mixed $value ): int|float
+    {
+        $string = (string) $value;
+
+        if ( 1 === preg_match( '/^-?\d+$/', $string ) && $string === (string) (int) $string ) {
+            return (int) $string;
+        }
+
+        return (float) $value;
     }
 
     /**

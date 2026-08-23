@@ -31,6 +31,8 @@ class FakeAccountEndpoint extends AccountEndpoint
 
     public function stats( ?string $starting = null, ?string $ending = null ): GrowthStats
     {
+        $this->assertValidWindow( $starting, $ending );
+
         return $this->fake->resolveStats( $starting, $ending );
     }
 
@@ -54,6 +56,8 @@ class FakeAccountEndpoint extends AccountEndpoint
 
     public function refresh( ?string $starting = null, ?string $ending = null ): GrowthStats
     {
+        $this->assertValidWindow( $starting, $ending );
+
         return $this->fake->resolveStats( $starting, $ending );
     }
 

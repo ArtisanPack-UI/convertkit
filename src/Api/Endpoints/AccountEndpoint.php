@@ -39,10 +39,6 @@ use InvalidArgumentException;
  */
 class AccountEndpoint
 {
-    /**
-     * @var array<int, string>
-     */
-    protected const INTERVALS = [ 'day', 'week', 'month' ];
 
     /**
      * Hard ceiling on the number of buckets a single series may span. Because
@@ -54,7 +50,11 @@ class AccountEndpoint
      *
      * @var int
      */
-    protected const MAX_BUCKETS = 366;
+    public const MAX_BUCKETS = 366;
+    /**
+     * @var array<int, string>
+     */
+    protected const INTERVALS = [ 'day', 'week', 'month' ];
 
     public function __construct(
         protected Client $client,
@@ -73,8 +73,7 @@ class AccountEndpoint
      */
     public function stats( ?string $starting = null, ?string $ending = null ): GrowthStats
     {
-        $this->assertValidDate( $starting, 'starting' );
-        $this->assertValidDate( $ending, 'ending' );
+        $this->assertValidWindow( $starting, $ending );
 
         return $this->cache->remember(
             $this->statsKey( $starting, $ending ),
@@ -115,8 +114,7 @@ class AccountEndpoint
      */
     public function refresh( ?string $starting = null, ?string $ending = null ): GrowthStats
     {
-        $this->assertValidDate( $starting, 'starting' );
-        $this->assertValidDate( $ending, 'ending' );
+        $this->assertValidWindow( $starting, $ending );
 
         $stats = $this->fetchStats( $starting, $ending );
         $this->cache->put( $this->statsKey( $starting, $ending ), $stats, $this->ttl );
@@ -178,8 +176,8 @@ class AccountEndpoint
             );
         }
 
-        $start = CarbonImmutable::parse( $starting )->startOfDay();
-        $end   = CarbonImmutable::parse( $ending )->endOfDay();
+        $start = $this->parseDate( $starting, 'starting' )->startOfDay();
+        $end   = $this->parseDate( $ending, 'ending' )->endOfDay();
 
         if ( $end < $start ) {
             throw new InvalidArgumentException( 'The ending date must not be before the starting date.' );
@@ -217,26 +215,48 @@ class AccountEndpoint
     }
 
     /**
-     * Guard an optional `yyyy-mm-dd` bound. `stats()` and `refresh()` forward
-     * their window straight to Kit, so without this a malformed date would be
-     * silently sent to the API — this rejects it up front, matching the
-     * validation `growthSeries()` already applies to its range.
+     * Guard an optional window. `stats()` and `refresh()` forward their bounds
+     * straight to Kit, so without this a malformed date would be silently sent
+     * to the API. Each present bound is strictly parsed, and a fully-specified
+     * window is rejected when it is inverted — the same contract `buckets()`
+     * enforces for `growthSeries()`, so both entry points reject the same input.
      */
-    protected function assertValidDate( ?string $date, string $bound ): void
+    protected function assertValidWindow( ?string $starting, ?string $ending ): void
     {
-        if ( null === $date ) {
-            return;
-        }
+        $start = null === $starting ? null : $this->parseDate( $starting, 'starting' );
+        $end   = null === $ending ? null : $this->parseDate( $ending, 'ending' );
 
+        if ( null !== $start && null !== $end && $end < $start ) {
+            throw new InvalidArgumentException( 'The ending date must not be before the starting date.' );
+        }
+    }
+
+    /**
+     * Strictly parse a canonical `yyyy-mm-dd` date, rejecting anything Kit
+     * would not accept. Carbon's forgiving parser silently normalizes
+     * noncanonical (`2026-1-1`) and overflowed (`2026-13-40`) input, so the
+     * parsed value is re-formatted and compared byte-for-byte against the
+     * original to reject those before they reach the cache key or the API.
+     */
+    protected function parseDate( string $date, string $bound ): CarbonImmutable
+    {
         try {
-            CarbonImmutable::parse( $date );
+            $parsed = CarbonImmutable::createFromFormat( '!Y-m-d', $date );
         } catch ( Exception $e ) {
             throw new InvalidArgumentException(
-                "The {$bound} date '{$date}' is not a valid date.",
+                "The {$bound} date '{$date}' is not a valid yyyy-mm-dd date.",
                 0,
                 $e,
             );
         }
+
+        if ( ! $parsed instanceof CarbonImmutable || $parsed->format( 'Y-m-d' ) !== $date ) {
+            throw new InvalidArgumentException(
+                "The {$bound} date '{$date}' is not a valid yyyy-mm-dd date.",
+            );
+        }
+
+        return $parsed;
     }
 
     protected function statsKey( ?string $starting, ?string $ending ): string
