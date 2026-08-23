@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Read-only broadcasts endpoint** — `ConvertKit::broadcasts()->list()`
+  returns recent broadcasts paired with their delivery/engagement stats
+  (recipients, open/click rates, unsubscribes) via Kit's `broadcasts/stats`
+  endpoint, in a single cursor-paginated request. Returns immutable
+  `Broadcast` DTOs each carrying a `BroadcastStats` DTO. Results are cached
+  like the reference-data endpoints (`broadcasts_ttl`, default 1 hour,
+  overridable with `CONVERTKIT_BROADCASTS_TTL`), keyed per limit; use
+  `->refresh()` to force a re-fetch. The limit defaults to 10 and is capped at
+  `BroadcastsEndpoint::MAX_LIMIT` (100). Covered by `ConvertKit::fake()` via a
+  network-free `FakeBroadcastsEndpoint`.
+
 ## [1.1.0] - 2026-07-21
 
 ### Added

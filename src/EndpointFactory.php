@@ -15,6 +15,7 @@ namespace ArtisanPackUI\ConvertKit;
 
 use ArtisanPackUI\ConvertKit\Api\Client;
 use ArtisanPackUI\ConvertKit\Api\Endpoints\AccountEndpoint;
+use ArtisanPackUI\ConvertKit\Api\Endpoints\BroadcastsEndpoint;
 use ArtisanPackUI\ConvertKit\Api\Endpoints\CustomFieldsEndpoint;
 use ArtisanPackUI\ConvertKit\Api\Endpoints\FormsEndpoint;
 use ArtisanPackUI\ConvertKit\Api\Endpoints\SubscribersEndpoint;
@@ -89,6 +90,16 @@ class EndpointFactory
             $this->cache(),
             $this->cacheKey( 'stats' ),
             (int) $this->config->get( 'convertkit.cache.stats_ttl', 900 ),
+        );
+    }
+
+    public function broadcasts(): BroadcastsEndpoint
+    {
+        return new BroadcastsEndpoint(
+            $this->client,
+            $this->cache(),
+            $this->cacheKey( 'broadcasts' ),
+            (int) $this->config->get( 'convertkit.cache.broadcasts_ttl', 3600 ),
         );
     }
 

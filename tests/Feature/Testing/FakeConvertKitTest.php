@@ -105,3 +105,13 @@ it( 'fails assertTagged for an unrecorded tag', function (): void {
     expect( fn () => $fake->assertTagged( 'a@b.co', 999 ) )
         ->toThrow( AssertionFailedError::class );
 } );
+
+it( 'exposes a fake broadcasts endpoint that never hits the network', function (): void {
+    ConvertKit::fake();
+    Http::fake();
+
+    expect( convertkit()->broadcasts()->list() )->toBe( [] );
+    expect( convertkit()->broadcasts()->refresh( 5 ) )->toBe( [] );
+
+    Http::assertNothingSent();
+} );
