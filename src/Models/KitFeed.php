@@ -65,6 +65,22 @@ class KitFeed extends Model
     ];
 
     /**
+     * Attribute casts declared as a property rather than the `casts()`
+     * method so they apply on every advertised Laravel version. The
+     * `casts()` method was only added in Laravel 11, so on Laravel 10 a
+     * method declaration silently overrides nothing and every cast is
+     * ignored.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'kit_tag_ids'       => 'array',
+        'field_map'         => 'array',
+        'conditional_logic' => 'array',
+        'is_active'         => 'boolean',
+    ];
+
+    /**
      * The form this feed belongs to.
      *
      * The related model class is resolved from config at call time so the
@@ -85,19 +101,6 @@ class KitFeed extends Model
         }
 
         return $this->belongsTo( $model, 'form_id' );
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    protected function casts(): array
-    {
-        return [
-            'kit_tag_ids'       => 'array',
-            'field_map'         => 'array',
-            'conditional_logic' => 'array',
-            'is_active'         => 'boolean',
-        ];
     }
 
     /**

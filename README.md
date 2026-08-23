@@ -98,6 +98,67 @@ php artisan convertkit:sync tags
 php artisan convertkit:sync fields
 ```
 
+### Account stats
+
+Read the account's growth aggregate — the subscriber count plus the new,
+cancelled, and net movement over a window — as an immutable `GrowthStats` DTO.
+Both bounds are optional; omit them and Kit reports the last 90 days. Dates use
+`yyyy-mm-dd` and are interpreted in the account's sending time zone.
+
+```php
+$stats = ConvertKit::account()->stats();                          // last 90 days; cached
+$stats = ConvertKit::account()->stats( '2026-01-01', '2026-03-31' );
+
+$stats->subscribers;       // 12_840  (count at the end of the window)
+$stats->newSubscribers;    // 512
+$stats->cancellations;     // 78
+$stats->netNewSubscribers; // 434
+
+ConvertKit::account()->refresh(); // force a re-fetch, bypassing the cache
+```
+
+Kit has no native time-series endpoint, so `growthSeries()` composes one from
+per-bucket reads. The interval is `day`, `week`, or `month`, and the range is
+capped at `AccountEndpoint::MAX_BUCKETS` (366) buckets to bound the fan-out.
+
+```php
+$series = ConvertKit::account()->growthSeries( '2026-01-01', '2026-03-31', 'week' );
+
+foreach ( $series as $point ) {
+    $point->starting;    // '2026-01-01'
+    $point->subscribers; // 12_010
+}
+
+ConvertKit::account()->refreshSeries( '2026-01-01', '2026-03-31', 'week' ); // re-fetch the series
+```
+
+The cache TTL defaults to 15 minutes (growth data moves faster than reference
+data); override it with `CONVERTKIT_STATS_TTL`.
+
+### Broadcasts
+
+Read-only access to recent broadcasts, each paired with its delivery and
+engagement stats (recipients, open/click rates, unsubscribes) — everything a
+recent-broadcasts dashboard widget needs, in a single cached call. Kit returns
+broadcasts newest-first, so `list( $limit )` gives the `$limit` most recent.
+
+```php
+$broadcasts = ConvertKit::broadcasts()->list();     // 10 most recent; cached
+$broadcasts = ConvertKit::broadcasts()->list( 25 ); // up to BroadcastsEndpoint::MAX_LIMIT (100)
+
+foreach ( $broadcasts as $broadcast ) {
+    $broadcast->subject;             // "This week in ..."
+    $broadcast->stats->recipients;   // 1_284
+    $broadcast->stats->openRate;     // 0.42  (a fraction, not a percentage)
+    $broadcast->stats->clickRate;    // 0.08
+}
+
+ConvertKit::broadcasts()->refresh(); // force a re-fetch, bypassing the cache
+```
+
+The cache TTL follows the reference-data endpoints (1 hour); override it with
+`CONVERTKIT_BROADCASTS_TTL`.
+
 ## Forms Integration
 
 Pairs with [`artisanpack-ui/forms`](https://gitlab.com/jacob-martella-web-design/artisanpack-ui/forms).

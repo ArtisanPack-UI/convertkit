@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-08-23
+
+### Added
+
+- **Account stats endpoint** — `ConvertKit::account()->stats()` returns the
+  account's growth aggregate (subscriber count plus new/cancelled/net movement)
+  for an optional `yyyy-mm-dd` window via Kit's `account/growth_stats` endpoint,
+  as an immutable `GrowthStats` DTO. `->growthSeries( $starting, $ending, $interval )`
+  composes a `day`/`week`/`month` time series from per-bucket calls, capped at
+  `AccountEndpoint::MAX_BUCKETS` (366) to bound the fan-out. Both reads are
+  cached (`stats_ttl`, default 15 minutes, overridable with
+  `CONVERTKIT_STATS_TTL`), keyed per window/interval; `->refresh()` and
+  `->refreshSeries()` force a re-fetch. Window dates are validated up front, so
+  a malformed date is rejected rather than forwarded to Kit. Covered by
+  `ConvertKit::fake()` via a network-free `FakeAccountEndpoint`.
+- **Read-only broadcasts endpoint** — `ConvertKit::broadcasts()->list()`
+  returns recent broadcasts paired with their delivery/engagement stats
+  (recipients, open/click rates, unsubscribes) via Kit's `broadcasts/stats`
+  endpoint, in a single cursor-paginated request. Returns immutable
+  `Broadcast` DTOs each carrying a `BroadcastStats` DTO. Results are cached
+  like the reference-data endpoints (`broadcasts_ttl`, default 1 hour,
+  overridable with `CONVERTKIT_BROADCASTS_TTL`), keyed per limit; use
+  `->refresh()` to force a re-fetch. The limit defaults to 10 and is capped at
+  `BroadcastsEndpoint::MAX_LIMIT` (100). Covered by `ConvertKit::fake()` via a
+  network-free `FakeBroadcastsEndpoint`.
+- **Expanded conditional logic operators** — `ConditionalLogicEvaluator` now
+  handles eighteen operators, adding `starts_with`, `ends_with`,
+  `greater_than`, `less_than`, `greater_or_equal`, `less_or_equal`, `in`,
+  `not_in`, `checked`, `unchecked`, `includes`, and `not_includes` to the
+  original six. The set is exposed as
+  `ConditionalLogicEvaluator::OPERATORS` and drives feed store/update request
+  validation, so the accepted operators can never drift from the evaluated ones.
+- **Test fixtures for stats and broadcasts** — `ConvertKit::fake()` gains the
+  `fakeStats()`, `fakeGrowthSeries()`, and `fakeBroadcasts()` seeders plus the
+  `assertStatsRequested()`, `assertGrowthSeriesRequested()`, and
+  `assertBroadcastsListed()` assertions.
+
+### Fixed
+
+- `KitFeed` now declares its attribute casts as a `$casts` property rather than
+  the `casts()` method. `casts()` only exists from Laravel 11, so on Laravel 10
+  — still an advertised target — the method form silently disabled every cast,
+  leaving JSON columns as raw strings and `is_active` uncast.
+
 ## [1.1.0] - 2026-07-21
 
 ### Added

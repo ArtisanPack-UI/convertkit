@@ -79,14 +79,25 @@ return [
     | are cached. Configure the cache store and per-endpoint TTL (seconds).
     | Use the `convertkit:sync` Artisan command to force a refresh.
     |
+    | Account growth stats change more often than reference data, so
+    | `stats_ttl` defaults to a shorter window (15 minutes). It caps how long
+    | `ConvertKit::account()->stats()` and `->growthSeries()` reads are served
+    | from cache before Kit is queried again.
+    |
+    | Broadcasts are read the same way for the recent-broadcasts widget, so
+    | `broadcasts_ttl` follows the reference-data default (1 hour). It caps how
+    | long `ConvertKit::broadcasts()->list()` reads are served from cache.
+    |
     */
 
     'cache' => [
-        'store'      => env( 'CONVERTKIT_CACHE_STORE' ),
-        'prefix'     => 'convertkit',
-        'forms_ttl'  => (int) env( 'CONVERTKIT_FORMS_TTL', 3600 ),
-        'tags_ttl'   => (int) env( 'CONVERTKIT_TAGS_TTL', 3600 ),
-        'fields_ttl' => (int) env( 'CONVERTKIT_FIELDS_TTL', 3600 ),
+        'store'          => env( 'CONVERTKIT_CACHE_STORE' ),
+        'prefix'         => 'convertkit',
+        'forms_ttl'      => (int) env( 'CONVERTKIT_FORMS_TTL', 3600 ),
+        'tags_ttl'       => (int) env( 'CONVERTKIT_TAGS_TTL', 3600 ),
+        'fields_ttl'     => (int) env( 'CONVERTKIT_FIELDS_TTL', 3600 ),
+        'stats_ttl'      => (int) env( 'CONVERTKIT_STATS_TTL', 900 ),
+        'broadcasts_ttl' => (int) env( 'CONVERTKIT_BROADCASTS_TTL', 3600 ),
     ],
 
     /*

@@ -13,7 +13,11 @@ declare( strict_types=1 );
 
 namespace ArtisanPackUI\ConvertKit\Testing;
 
+use ArtisanPackUI\ConvertKit\Api\DTOs\Broadcast;
+use ArtisanPackUI\ConvertKit\Api\DTOs\GrowthStats;
 use ArtisanPackUI\ConvertKit\Api\DTOs\Subscriber;
+use ArtisanPackUI\ConvertKit\Api\Endpoints\AccountEndpoint;
+use ArtisanPackUI\ConvertKit\Api\Endpoints\BroadcastsEndpoint;
 use ArtisanPackUI\ConvertKit\Api\Endpoints\CustomFieldsEndpoint;
 use ArtisanPackUI\ConvertKit\Api\Endpoints\FormsEndpoint;
 use ArtisanPackUI\ConvertKit\Api\Endpoints\SubscribersEndpoint;
@@ -53,6 +57,27 @@ class FakeConvertKit extends ConvertKit
     public array $untagged = [];
 
     /**
+     * Read-call log for `account()->stats()` / `account()->refresh()`.
+     *
+     * @var array<int, array{starting: ?string, ending: ?string}>
+     */
+    public array $statsRequests = [];
+
+    /**
+     * Read-call log for `account()->growthSeries()`.
+     *
+     * @var array<int, array{starting: string, ending: string, interval: string}>
+     */
+    public array $growthSeriesRequests = [];
+
+    /**
+     * Read-call log for `broadcasts()->list()` / `broadcasts()->refresh()`.
+     *
+     * @var array<int, array{limit: int}>
+     */
+    public array $broadcastsRequests = [];
+
+    /**
      * Map from Kit subscriber id → email so tag()/untag() calls that only
      * carry the id can be resolved back to a human-readable address in
      * `assertTagged()`.
@@ -60,6 +85,29 @@ class FakeConvertKit extends ConvertKit
      * @var array<int, string>
      */
     protected array $subscriberEmails = [];
+
+    /**
+     * Seeded aggregate returned by `account()->stats()` / `refresh()`, or null
+     * to fall back to a zero-valued aggregate.
+     */
+    protected ?GrowthStats $statsFixture = null;
+
+    /**
+     * Seeded growth series returned verbatim by `account()->growthSeries()`, or
+     * null to fall back to one zero-valued point per interval bucket.
+     *
+     * @var array<int, GrowthStats>|null
+     */
+    protected ?array $growthSeriesFixture = null;
+
+    /**
+     * Seeded broadcasts returned newest-first ( sliced to the requested limit )
+     * by `broadcasts()->list()` / `refresh()`, or null to fall back to an empty
+     * list.
+     *
+     * @var array<int, Broadcast>|null
+     */
+    protected ?array $broadcastsFixture = null;
 
     protected int $nextSubscriberId = 1;
 
@@ -71,6 +119,10 @@ class FakeConvertKit extends ConvertKit
 
     protected FakeCustomFieldsEndpoint $customFieldsFake;
 
+    protected FakeAccountEndpoint $accountFake;
+
+    protected FakeBroadcastsEndpoint $broadcastsFake;
+
     public function __construct()
     {
         // Intentionally skip parent constructor — the fake owns its own
@@ -79,6 +131,8 @@ class FakeConvertKit extends ConvertKit
         $this->formsFake        = new FakeFormsEndpoint( $this );
         $this->tagsFake         = new FakeTagsEndpoint( $this );
         $this->customFieldsFake = new FakeCustomFieldsEndpoint( $this );
+        $this->accountFake      = new FakeAccountEndpoint( $this );
+        $this->broadcastsFake   = new FakeBroadcastsEndpoint( $this );
     }
 
     public function subscribers(): SubscribersEndpoint
@@ -99,6 +153,66 @@ class FakeConvertKit extends ConvertKit
     public function customFields(): CustomFieldsEndpoint
     {
         return $this->customFieldsFake;
+    }
+
+    public function account(): AccountEndpoint
+    {
+        return $this->accountFake;
+    }
+
+    public function broadcasts(): BroadcastsEndpoint
+    {
+        return $this->broadcastsFake;
+    }
+
+    /**
+     * Seed the aggregate that `account()->stats()` and `account()->refresh()`
+     * return. Pass a ready-made GrowthStats, or the individual counts for a
+     * quick fixture. The requested window is echoed onto the result at read
+     * time, so any `starting`/`ending` on a supplied GrowthStats is ignored.
+     *
+     * @since 1.2.0
+     */
+    public function fakeStats(
+        GrowthStats|int $subscribers,
+        int $netNewSubscribers = 0,
+        int $newSubscribers = 0,
+        int $cancellations = 0,
+    ): self {
+        $this->statsFixture = $subscribers instanceof GrowthStats
+            ? $subscribers
+            : new GrowthStats( $subscribers, $netNewSubscribers, $newSubscribers, $cancellations );
+
+        return $this;
+    }
+
+    /**
+     * Seed the growth series that `account()->growthSeries()` returns. The
+     * points are returned verbatim, so the caller controls the shape of the
+     * series; range/interval validation still runs against the requested
+     * window.
+     *
+     * @since 1.2.0
+     */
+    public function fakeGrowthSeries( GrowthStats ...$points ): self
+    {
+        $this->growthSeriesFixture = array_values( $points );
+
+        return $this;
+    }
+
+    /**
+     * Seed the broadcasts that `broadcasts()->list()` and `refresh()` return.
+     * Pass them newest-first; each read slices to its requested limit, mirroring
+     * "the $limit most recent broadcasts".
+     *
+     * @since 1.2.0
+     */
+    public function fakeBroadcasts( Broadcast ...$broadcasts ): self
+    {
+        $this->broadcastsFixture = array_values( $broadcasts );
+
+        return $this;
     }
 
     /**
@@ -152,6 +266,86 @@ class FakeConvertKit extends ConvertKit
             'email'  => $this->subscriberEmails[ $subscriberId ] ?? '',
             'tag_id' => $tagId,
         ];
+    }
+
+    /**
+     * Record a stats read and return the seeded aggregate ( or zeros ) with the
+     * requested window echoed onto it.
+     *
+     * Kept public so the fake account endpoint can push through it.
+     *
+     * @since 1.2.0
+     */
+    public function resolveStats( ?string $starting, ?string $ending ): GrowthStats
+    {
+        $this->statsRequests[] = [
+            'starting' => $starting,
+            'ending'   => $ending,
+        ];
+
+        $fixture = $this->statsFixture;
+
+        return new GrowthStats(
+            null === $fixture ? 0 : $fixture->subscribers,
+            null === $fixture ? 0 : $fixture->netNewSubscribers,
+            null === $fixture ? 0 : $fixture->newSubscribers,
+            null === $fixture ? 0 : $fixture->cancellations,
+            $starting,
+            $ending,
+        );
+    }
+
+    /**
+     * Record a growth-series read and return the seeded series verbatim, or one
+     * zero-valued point per bucket when nothing was seeded.
+     *
+     * Kept public so the fake account endpoint can push through it. The endpoint
+     * computes `$buckets` ( which also validates the range/interval ) before
+     * handing them here.
+     *
+     * @since 1.2.0
+     *
+     * @param  array<int, array{0: string, 1: string}>  $buckets
+     *
+     * @return array<int, GrowthStats>
+     */
+    public function resolveGrowthSeries( string $starting, string $ending, string $interval, array $buckets ): array
+    {
+        $this->growthSeriesRequests[] = [
+            'starting' => $starting,
+            'ending'   => $ending,
+            'interval' => $interval,
+        ];
+
+        if ( null !== $this->growthSeriesFixture ) {
+            return $this->growthSeriesFixture;
+        }
+
+        return array_map(
+            static fn ( array $bucket ): GrowthStats => new GrowthStats( 0, 0, 0, 0, $bucket[0], $bucket[1] ),
+            $buckets,
+        );
+    }
+
+    /**
+     * Record a broadcasts read and return the seeded broadcasts ( sliced to the
+     * limit ), or an empty list when nothing was seeded.
+     *
+     * Kept public so the fake broadcasts endpoint can push through it.
+     *
+     * @since 1.2.0
+     *
+     * @return array<int, Broadcast>
+     */
+    public function resolveBroadcasts( int $limit ): array
+    {
+        $this->broadcastsRequests[] = [ 'limit' => $limit ];
+
+        if ( null === $this->broadcastsFixture ) {
+            return [];
+        }
+
+        return array_slice( $this->broadcastsFixture, 0, $limit );
     }
 
     /**
@@ -232,5 +426,92 @@ class FakeConvertKit extends ConvertKit
             $this->subscribed,
             sprintf( 'Expected %d subscribe call(s), got %d.', $count, count( $this->subscribed ) ),
         );
+    }
+
+    /**
+     * Assert account growth stats were requested. Pass `$starting`/`$ending`
+     * to require a matching window, or leave them null to accept any request.
+     *
+     * @since 1.2.0
+     */
+    public function assertStatsRequested( ?string $starting = null, ?string $ending = null ): void
+    {
+        foreach ( $this->statsRequests as $request ) {
+            if ( null !== $starting && $request['starting'] !== $starting ) {
+                continue;
+            }
+
+            if ( null !== $ending && $request['ending'] !== $ending ) {
+                continue;
+            }
+
+            Assert::assertTrue( true );
+
+            return;
+        }
+
+        Assert::fail( sprintf(
+            'Expected account stats to be requested%s but no matching call was recorded.',
+            null === $starting && null === $ending
+                ? ''
+                : " for the window {$starting} to {$ending}",
+        ) );
+    }
+
+    /**
+     * Assert a growth time series was requested. Pass any of
+     * `$starting`/`$ending`/`$interval` to require a match, or leave them null
+     * to accept any request.
+     *
+     * @since 1.2.0
+     */
+    public function assertGrowthSeriesRequested(
+        ?string $starting = null,
+        ?string $ending = null,
+        ?string $interval = null,
+    ): void {
+        foreach ( $this->growthSeriesRequests as $request ) {
+            if ( null !== $starting && $request['starting'] !== $starting ) {
+                continue;
+            }
+
+            if ( null !== $ending && $request['ending'] !== $ending ) {
+                continue;
+            }
+
+            if ( null !== $interval && $request['interval'] !== $interval ) {
+                continue;
+            }
+
+            Assert::assertTrue( true );
+
+            return;
+        }
+
+        Assert::fail( 'Expected a growth series to be requested but no matching call was recorded.' );
+    }
+
+    /**
+     * Assert the recent broadcasts were listed. Pass `$limit` to require a
+     * matching limit, or leave it null to accept any request.
+     *
+     * @since 1.2.0
+     */
+    public function assertBroadcastsListed( ?int $limit = null ): void
+    {
+        foreach ( $this->broadcastsRequests as $request ) {
+            if ( null !== $limit && $request['limit'] !== $limit ) {
+                continue;
+            }
+
+            Assert::assertTrue( true );
+
+            return;
+        }
+
+        Assert::fail( sprintf(
+            'Expected broadcasts to be listed%s but no matching call was recorded.',
+            null === $limit ? '' : " with limit {$limit}",
+        ) );
     }
 }

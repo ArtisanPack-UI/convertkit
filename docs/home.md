@@ -28,8 +28,8 @@ If you're new here, start with [Getting Started](Getting-Started).
 `artisanpack-ui/convertkit` owns Kit integration for Laravel apps. It provides:
 
 - **Kit v4 HTTP client** with exponential-backoff retries, `Retry-After` handling, and typed exceptions for auth, rate limit, validation, not-found, and server errors.
-- **Four endpoint wrappers** — subscribers, forms, tags, and custom fields — returning immutable DTOs.
-- **Reference-data cache** for forms, tags, and custom fields (rarely change) with a `convertkit:sync` command to force-refresh.
+- **Six endpoint wrappers** — subscribers, forms, tags, custom fields, account stats, and read-only broadcasts — returning immutable DTOs.
+- **Reference-data cache** for forms, tags, and custom fields (rarely change) with a `convertkit:sync` command to force-refresh. Account stats and broadcasts are cached the same way on their own TTLs.
 - **Forms integration** that listens for `ArtisanPackUI\Forms\Events\FormSubmitted`, evaluates a per-form [`KitFeed`](Forms-Integration-Feeds), maps the submission to a Kit payload, and dispatches a queued job.
 - **REST endpoints** for feed CRUD, feed dry-runs, and a public subscribe endpoint front-end forms can POST to.
 - **`FakeConvertKit`** — a recording test double that swaps the container binding, so consumer app tests can assert against Kit calls without touching the network.

@@ -64,7 +64,7 @@ $subscriber = ConvertKit::subscribers()->create(
 );
 ```
 
-More: [Subscribers](API-Client-Subscribers), [Forms](API-Client-Forms), [Tags](API-Client-Tags), [Custom Fields](API-Client-Custom-Fields).
+More: [Subscribers](API-Client-Subscribers), [Forms](API-Client-Forms), [Tags](API-Client-Tags), [Custom Fields](API-Client-Custom-Fields), [Account](API-Client-Account), [Broadcasts](API-Client-Broadcasts).
 
 ## 5. (Optional) Wire up the forms integration
 

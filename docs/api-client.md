@@ -12,6 +12,8 @@ Sub-pages by endpoint:
 - [Forms](API-Client-Forms)
 - [Tags](API-Client-Tags)
 - [Custom Fields](API-Client-Custom-Fields)
+- [Account](API-Client-Account)
+- [Broadcasts](API-Client-Broadcasts)
 
 ## The facade
 
@@ -22,10 +24,12 @@ ConvertKit::subscribers();    // SubscribersEndpoint
 ConvertKit::forms();          // FormsEndpoint
 ConvertKit::tags();           // TagsEndpoint
 ConvertKit::customFields();   // CustomFieldsEndpoint
+ConvertKit::account();        // AccountEndpoint (stats)
+ConvertKit::broadcasts();     // BroadcastsEndpoint (read-only)
 ConvertKit::client();         // low-level Client
 ```
 
-Every accessor returns a singleton — the same instance is shared across the request lifecycle. The `ConvertKit` class itself just aggregates the four endpoint wrappers.
+Every accessor returns a singleton — the same instance is shared across the request lifecycle. The `ConvertKit` class itself just aggregates the endpoint wrappers.
 
 ## The helper
 
@@ -56,6 +60,9 @@ Every endpoint returns immutable DTOs from the `ArtisanPackUI\ConvertKit\Api\DTO
 - `Form` — id, name, type, embed URL, created-at.
 - `Tag` — id, name, created-at.
 - `CustomField` — id, key, label.
+- `GrowthStats` — subscriber count plus new/cancelled/net movement for a window.
+- `Broadcast` — id, subject, send-at, and a nested `BroadcastStats`.
+- `BroadcastStats` — recipients, opens/clicks, open/click/unsubscribe rates, progress, status.
 
 List endpoints return `PaginatedCollection<T>` with `meta` (per-page, page, total) and an `items` iterator.
 
@@ -74,6 +81,8 @@ ConvertKit::customFields()->refresh();
 ```
 
 Or from the CLI: `php artisan convertkit:sync [resource]`.
+
+The [`account()`](API-Client-Account) and [`broadcasts()`](API-Client-Broadcasts) reads are cached the same way, keyed per window/interval and per limit respectively. Growth stats move faster than reference data, so `stats_ttl` defaults to 15 minutes; `broadcasts_ttl` follows the reference-data default of 1 hour. Force a refresh with `account()->refresh()` / `account()->refreshSeries()` and `broadcasts()->refresh()`.
 
 The `subscribers()` endpoint is intentionally uncached — subscriber state is high-churn.
 
@@ -94,12 +103,17 @@ ArtisanPackUI\ConvertKit\
 │   │   ├── Form.php
 │   │   ├── Tag.php
 │   │   ├── CustomField.php
+│   │   ├── GrowthStats.php
+│   │   ├── Broadcast.php
+│   │   ├── BroadcastStats.php
 │   │   └── PaginatedCollection.php
 │   ├── Endpoints\
 │   │   ├── SubscribersEndpoint.php
 │   │   ├── FormsEndpoint.php
 │   │   ├── TagsEndpoint.php
-│   │   └── CustomFieldsEndpoint.php
+│   │   ├── CustomFieldsEndpoint.php
+│   │   ├── AccountEndpoint.php
+│   │   └── BroadcastsEndpoint.php
 │   └── Exceptions\
 │       ├── KitException.php             — base
 │       ├── KitAuthException.php
@@ -142,7 +156,9 @@ ArtisanPackUI\ConvertKit\
     ├── FakeSubscribersEndpoint.php
     ├── FakeFormsEndpoint.php
     ├── FakeTagsEndpoint.php
-    └── FakeCustomFieldsEndpoint.php
+    ├── FakeCustomFieldsEndpoint.php
+    ├── FakeAccountEndpoint.php
+    └── FakeBroadcastsEndpoint.php
 ```
 
 ---
