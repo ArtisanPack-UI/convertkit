@@ -186,3 +186,65 @@ it( 'rejects a range that would fan out past the bucket cap without hitting Kit'
 
     Http::assertNothingSent();
 } );
+
+it( 'refreshSeries() forces a re-fetch and repopulates the series cache', function (): void {
+    Http::fakeSequence()
+        ->push( growthStatsFixture( [ 'subscribers' => 1 ] ), 200 )
+        ->push( growthStatsFixture( [ 'subscribers' => 2 ] ), 200 )
+        ->push( growthStatsFixture( [ 'subscribers' => 3 ] ), 200 )
+        ->push( growthStatsFixture( [ 'subscribers' => 10 ] ), 200 )
+        ->push( growthStatsFixture( [ 'subscribers' => 20 ] ), 200 )
+        ->push( growthStatsFixture( [ 'subscribers' => 30 ] ), 200 );
+
+    $account = app( ConvertKit::class )->account();
+
+    // Prime the cache with the first three per-bucket reads.
+    $series = $account->growthSeries( '2023-01-01', '2023-01-21', 'week' );
+    expect( array_map( fn ( GrowthStats $s ): int => $s->subscribers, $series ) )->toBe( [ 1, 2, 3 ] );
+    Http::assertSentCount( 3 );
+
+    // A cached read makes no further requests.
+    $account->growthSeries( '2023-01-01', '2023-01-21', 'week' );
+    Http::assertSentCount( 3 );
+
+    // refreshSeries() ignores the cached series and re-fetches every bucket.
+    $refreshed = $account->refreshSeries( '2023-01-01', '2023-01-21', 'week' );
+    expect( array_map( fn ( GrowthStats $s ): int => $s->subscribers, $refreshed ) )->toBe( [ 10, 20, 30 ] );
+    Http::assertSentCount( 6 );
+
+    // The next cached read reflects the refreshed series.
+    $cached = $account->growthSeries( '2023-01-01', '2023-01-21', 'week' );
+    expect( array_map( fn ( GrowthStats $s ): int => $s->subscribers, $cached ) )->toBe( [ 10, 20, 30 ] );
+    Http::assertSentCount( 6 );
+} );
+
+it( 'refreshSeries() validates the range like growthSeries() without hitting Kit', function (): void {
+    Http::fake();
+
+    // Daily buckets across four years is well over the 366-bucket ceiling.
+    expect( fn () => app( ConvertKit::class )->account()->refreshSeries( '2020-01-01', '2024-01-01', 'day' ) )
+        ->toThrow( InvalidArgumentException::class );
+
+    Http::assertNothingSent();
+} );
+
+it( 'rejects a malformed date on stats() without forwarding it to Kit', function (): void {
+    Http::fake();
+
+    expect( fn () => app( ConvertKit::class )->account()->stats( 'not-a-date' ) )
+        ->toThrow( InvalidArgumentException::class );
+
+    expect( fn () => app( ConvertKit::class )->account()->stats( '2023-01-01', 'nonsense' ) )
+        ->toThrow( InvalidArgumentException::class );
+
+    Http::assertNothingSent();
+} );
+
+it( 'rejects a malformed date on refresh() without forwarding it to Kit', function (): void {
+    Http::fake();
+
+    expect( fn () => app( ConvertKit::class )->account()->refresh( 'not-a-date' ) )
+        ->toThrow( InvalidArgumentException::class );
+
+    Http::assertNothingSent();
+} );

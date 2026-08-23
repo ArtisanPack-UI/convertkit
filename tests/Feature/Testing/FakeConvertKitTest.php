@@ -174,6 +174,31 @@ it( 'still validates the range for a seeded growth series', function (): void {
         ->toThrow( InvalidArgumentException::class );
 } );
 
+it( 'returns the seeded series from refreshSeries() and records the read', function (): void {
+    $fake = ConvertKit::fake();
+    Http::fake();
+
+    $fake->fakeGrowthSeries(
+        new GrowthStats( 100, 5, 5, 0, '2023-01-01', '2023-01-07' ),
+        new GrowthStats( 110, 10, 12, 2, '2023-01-08', '2023-01-14' ),
+    );
+
+    $series = convertkit()->account()->refreshSeries( '2023-01-01', '2023-01-31', 'week' );
+
+    expect( $series )->toHaveCount( 2 );
+    expect( $series[1]->subscribers )->toBe( 110 );
+
+    $fake->assertGrowthSeriesRequested( '2023-01-01', '2023-01-31', 'week' );
+    Http::assertNothingSent();
+} );
+
+it( 'still validates the range for refreshSeries() on the fake', function (): void {
+    ConvertKit::fake();
+
+    expect( fn () => convertkit()->account()->refreshSeries( '2023-02-01', '2023-01-01' ) )
+        ->toThrow( InvalidArgumentException::class );
+} );
+
 it( 'asserts stats and growth series were requested', function (): void {
     $fake = ConvertKit::fake();
 

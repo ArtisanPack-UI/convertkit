@@ -16,6 +16,7 @@ namespace ArtisanPackUI\ConvertKit\Api\Endpoints;
 use ArtisanPackUI\ConvertKit\Api\Client;
 use ArtisanPackUI\ConvertKit\Api\DTOs\GrowthStats;
 use Carbon\CarbonImmutable;
+use Exception;
 use Illuminate\Contracts\Cache\Repository as CacheRepository;
 use InvalidArgumentException;
 
@@ -28,6 +29,8 @@ use InvalidArgumentException;
  * `growthSeries()` composes one by requesting per-bucket aggregates across the
  * range. Results are cached like the reference-data endpoints, with a
  * configurable TTL, keyed per period so distinct windows don't collide.
+ * `refresh()` and `refreshSeries()` force a re-fetch of a cached aggregate or
+ * series respectively.
  *
  * @package    ArtisanPack_UI
  * @subpackage ConvertKit
@@ -70,6 +73,9 @@ class AccountEndpoint
      */
     public function stats( ?string $starting = null, ?string $ending = null ): GrowthStats
     {
+        $this->assertValidDate( $starting, 'starting' );
+        $this->assertValidDate( $ending, 'ending' );
+
         return $this->cache->remember(
             $this->statsKey( $starting, $ending ),
             $this->ttl,
@@ -109,10 +115,35 @@ class AccountEndpoint
      */
     public function refresh( ?string $starting = null, ?string $ending = null ): GrowthStats
     {
+        $this->assertValidDate( $starting, 'starting' );
+        $this->assertValidDate( $ending, 'ending' );
+
         $stats = $this->fetchStats( $starting, $ending );
         $this->cache->put( $this->statsKey( $starting, $ending ), $stats, $this->ttl );
 
         return $stats;
+    }
+
+    /**
+     * Force a re-fetch of a growth time series and refresh its cache entry.
+     *
+     * The series counterpart to `refresh()`: it re-issues the per-bucket
+     * `account/growth_stats` calls, ignoring any cached series, and stores the
+     * fresh result under the same key `growthSeries()` reads from. Range and
+     * interval are validated identically ( via `buckets()` ).
+     *
+     * @return array<int, GrowthStats>
+     */
+    public function refreshSeries( string $starting, string $ending, string $interval = 'week' ): array
+    {
+        $series = array_map(
+            fn ( array $bucket ): GrowthStats => $this->fetchStats( $bucket[0], $bucket[1] ),
+            $this->buckets( $starting, $ending, $interval ),
+        );
+
+        $this->cache->put( $this->seriesKey( $starting, $ending, $interval ), $series, $this->ttl );
+
+        return $series;
     }
 
     protected function fetchStats( ?string $starting = null, ?string $ending = null ): GrowthStats
@@ -183,6 +214,29 @@ class AccountEndpoint
         }
 
         return $buckets;
+    }
+
+    /**
+     * Guard an optional `yyyy-mm-dd` bound. `stats()` and `refresh()` forward
+     * their window straight to Kit, so without this a malformed date would be
+     * silently sent to the API — this rejects it up front, matching the
+     * validation `growthSeries()` already applies to its range.
+     */
+    protected function assertValidDate( ?string $date, string $bound ): void
+    {
+        if ( null === $date ) {
+            return;
+        }
+
+        try {
+            CarbonImmutable::parse( $date );
+        } catch ( Exception $e ) {
+            throw new InvalidArgumentException(
+                "The {$bound} date '{$date}' is not a valid date.",
+                0,
+                $e,
+            );
+        }
     }
 
     protected function statsKey( ?string $starting, ?string $ending ): string

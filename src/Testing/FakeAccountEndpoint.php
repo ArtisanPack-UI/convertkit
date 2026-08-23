@@ -56,4 +56,21 @@ class FakeAccountEndpoint extends AccountEndpoint
     {
         return $this->fake->resolveStats( $starting, $ending );
     }
+
+    /**
+     * Mirror the real endpoint's `refreshSeries()`: the same range/interval
+     * validation ( via `buckets()` ) then the seeded series, recorded like any
+     * other series read. Still network-free.
+     *
+     * @return array<int, GrowthStats>
+     */
+    public function refreshSeries( string $starting, string $ending, string $interval = 'week' ): array
+    {
+        return $this->fake->resolveGrowthSeries(
+            $starting,
+            $ending,
+            $interval,
+            $this->buckets( $starting, $ending, $interval ),
+        );
+    }
 }
