@@ -98,6 +98,30 @@ php artisan convertkit:sync tags
 php artisan convertkit:sync fields
 ```
 
+### Broadcasts
+
+Read-only access to recent broadcasts, each paired with its delivery and
+engagement stats (recipients, open/click rates, unsubscribes) — everything a
+recent-broadcasts dashboard widget needs, in a single cached call. Kit returns
+broadcasts newest-first, so `list( $limit )` gives the `$limit` most recent.
+
+```php
+$broadcasts = ConvertKit::broadcasts()->list();     // 10 most recent; cached
+$broadcasts = ConvertKit::broadcasts()->list( 25 ); // up to BroadcastsEndpoint::MAX_LIMIT (100)
+
+foreach ( $broadcasts as $broadcast ) {
+    $broadcast->subject;             // "This week in ..."
+    $broadcast->stats->recipients;   // 1_284
+    $broadcast->stats->openRate;     // 0.42  (a fraction, not a percentage)
+    $broadcast->stats->clickRate;    // 0.08
+}
+
+ConvertKit::broadcasts()->refresh(); // force a re-fetch, bypassing the cache
+```
+
+The cache TTL follows the reference-data endpoints (1 hour); override it with
+`CONVERTKIT_BROADCASTS_TTL`.
+
 ## Forms Integration
 
 Pairs with [`artisanpack-ui/forms`](https://gitlab.com/jacob-martella-web-design/artisanpack-ui/forms).

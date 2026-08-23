@@ -18,6 +18,7 @@ namespace ArtisanPackUI\ConvertKit;
 
 use ArtisanPackUI\ConvertKit\Api\Client;
 use ArtisanPackUI\ConvertKit\Api\Endpoints\AccountEndpoint;
+use ArtisanPackUI\ConvertKit\Api\Endpoints\BroadcastsEndpoint;
 use ArtisanPackUI\ConvertKit\Api\Endpoints\CustomFieldsEndpoint;
 use ArtisanPackUI\ConvertKit\Api\Endpoints\FormsEndpoint;
 use ArtisanPackUI\ConvertKit\Api\Endpoints\SubscribersEndpoint;
@@ -26,7 +27,7 @@ use ArtisanPackUI\ConvertKit\Api\Endpoints\TagsEndpoint;
 /**
  * Fluent entry point for the Kit v4 API.
  *
- * Resolves the four endpoint classes lazily on first access and hands out
+ * Resolves each endpoint class lazily on first access and hands out
  * cached singletons for the rest of the request lifecycle.
  *
  * @package    ArtisanPack_UI
@@ -45,6 +46,8 @@ class ConvertKit
     protected ?CustomFieldsEndpoint $customFields = null;
 
     protected ?AccountEndpoint $account = null;
+
+    protected ?BroadcastsEndpoint $broadcasts = null;
 
     public function __construct( protected EndpointFactory $factory )
     {
@@ -96,5 +99,13 @@ class ConvertKit
     public function account(): AccountEndpoint
     {
         return $this->account ??= $this->factory->account();
+    }
+
+    /**
+     * Broadcasts endpoint ( read-only, with engagement stats ).
+     */
+    public function broadcasts(): BroadcastsEndpoint
+    {
+        return $this->broadcasts ??= $this->factory->broadcasts();
     }
 }

@@ -75,6 +75,7 @@ abstract class TestCase extends BaseTestCase
         $app['config']->set( 'convertkit.cache.tags_ttl', 3600 );
         $app['config']->set( 'convertkit.cache.fields_ttl', 3600 );
         $app['config']->set( 'convertkit.cache.stats_ttl', 900 );
+        $app['config']->set( 'convertkit.cache.broadcasts_ttl', 3600 );
 
         // Forms integration + feed admin defaults for tests.
         $app['config']->set( 'convertkit.forms_integration.enabled', false );
