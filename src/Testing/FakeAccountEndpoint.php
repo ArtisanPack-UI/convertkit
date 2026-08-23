@@ -31,26 +31,29 @@ class FakeAccountEndpoint extends AccountEndpoint
 
     public function stats( ?string $starting = null, ?string $ending = null ): GrowthStats
     {
-        return new GrowthStats( 0, 0, 0, 0, $starting, $ending );
+        return $this->fake->resolveStats( $starting, $ending );
     }
 
     /**
-     * Mirror the real endpoint's contract: one zero-valued point per bucket,
-     * with the same range/interval validation. Still network-free — `buckets()`
-     * is pure date math, so no Kit request is ever made.
+     * Mirror the real endpoint's contract: the same range/interval validation
+     * ( via `buckets()` ) then the seeded series, or one zero-valued point per
+     * bucket when nothing was seeded. Still network-free — `buckets()` is pure
+     * date math, so no Kit request is ever made.
      *
      * @return array<int, GrowthStats>
      */
     public function growthSeries( string $starting, string $ending, string $interval = 'week' ): array
     {
-        return array_map(
-            static fn ( array $bucket ): GrowthStats => new GrowthStats( 0, 0, 0, 0, $bucket[0], $bucket[1] ),
+        return $this->fake->resolveGrowthSeries(
+            $starting,
+            $ending,
+            $interval,
             $this->buckets( $starting, $ending, $interval ),
         );
     }
 
     public function refresh( ?string $starting = null, ?string $ending = null ): GrowthStats
     {
-        return new GrowthStats( 0, 0, 0, 0, $starting, $ending );
+        return $this->fake->resolveStats( $starting, $ending );
     }
 }
