@@ -91,7 +91,7 @@ it( 'rejects an unknown conditional operator', function (): void {
         'conditional_logic' => [
             'match'      => 'all',
             'conditions' => [
-                [ 'field' => 'x', 'operator' => 'starts_with', 'value' => 'a' ],
+                [ 'field' => 'x', 'operator' => 'regex_match', 'value' => 'a' ],
             ],
         ],
     ] );
