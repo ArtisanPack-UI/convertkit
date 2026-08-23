@@ -13,6 +13,7 @@ declare( strict_types=1 );
 
 namespace ArtisanPackUI\ConvertKit\Testing;
 
+use ArtisanPackUI\ConvertKit\Api\DTOs\Broadcast;
 use ArtisanPackUI\ConvertKit\Api\Endpoints\BroadcastsEndpoint;
 
 /**
@@ -29,18 +30,22 @@ class FakeBroadcastsEndpoint extends BroadcastsEndpoint
     }
 
     /**
-     * @return array<int, mixed>
+     * Mirror the real endpoint's contract: the same limit validation ( via
+     * `normalizeLimit()` ) then the seeded broadcasts sliced to the limit, or an
+     * empty list when nothing was seeded. Never touches the network.
+     *
+     * @return array<int, Broadcast>
      */
     public function list( int $limit = self::DEFAULT_LIMIT ): array
     {
-        return [];
+        return $this->fake->resolveBroadcasts( $this->normalizeLimit( $limit ) );
     }
 
     /**
-     * @return array<int, mixed>
+     * @return array<int, Broadcast>
      */
     public function refresh( int $limit = self::DEFAULT_LIMIT ): array
     {
-        return [];
+        return $this->fake->resolveBroadcasts( $this->normalizeLimit( $limit ) );
     }
 }
