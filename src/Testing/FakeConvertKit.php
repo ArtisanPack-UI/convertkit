@@ -14,6 +14,7 @@ declare( strict_types=1 );
 namespace ArtisanPackUI\ConvertKit\Testing;
 
 use ArtisanPackUI\ConvertKit\Api\DTOs\Subscriber;
+use ArtisanPackUI\ConvertKit\Api\Endpoints\AccountEndpoint;
 use ArtisanPackUI\ConvertKit\Api\Endpoints\CustomFieldsEndpoint;
 use ArtisanPackUI\ConvertKit\Api\Endpoints\FormsEndpoint;
 use ArtisanPackUI\ConvertKit\Api\Endpoints\SubscribersEndpoint;
@@ -71,6 +72,8 @@ class FakeConvertKit extends ConvertKit
 
     protected FakeCustomFieldsEndpoint $customFieldsFake;
 
+    protected FakeAccountEndpoint $accountFake;
+
     public function __construct()
     {
         // Intentionally skip parent constructor — the fake owns its own
@@ -79,6 +82,7 @@ class FakeConvertKit extends ConvertKit
         $this->formsFake        = new FakeFormsEndpoint( $this );
         $this->tagsFake         = new FakeTagsEndpoint( $this );
         $this->customFieldsFake = new FakeCustomFieldsEndpoint( $this );
+        $this->accountFake      = new FakeAccountEndpoint( $this );
     }
 
     public function subscribers(): SubscribersEndpoint
@@ -99,6 +103,11 @@ class FakeConvertKit extends ConvertKit
     public function customFields(): CustomFieldsEndpoint
     {
         return $this->customFieldsFake;
+    }
+
+    public function account(): AccountEndpoint
+    {
+        return $this->accountFake;
     }
 
     /**
