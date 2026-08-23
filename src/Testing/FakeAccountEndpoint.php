@@ -35,11 +35,18 @@ class FakeAccountEndpoint extends AccountEndpoint
     }
 
     /**
+     * Mirror the real endpoint's contract: one zero-valued point per bucket,
+     * with the same range/interval validation. Still network-free — `buckets()`
+     * is pure date math, so no Kit request is ever made.
+     *
      * @return array<int, GrowthStats>
      */
     public function growthSeries( string $starting, string $ending, string $interval = 'week' ): array
     {
-        return [];
+        return array_map(
+            static fn ( array $bucket ): GrowthStats => new GrowthStats( 0, 0, 0, 0, $bucket[0], $bucket[1] ),
+            $this->buckets( $starting, $ending, $interval ),
+        );
     }
 
     public function refresh( ?string $starting = null, ?string $ending = null ): GrowthStats

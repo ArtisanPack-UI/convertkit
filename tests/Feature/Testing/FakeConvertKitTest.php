@@ -85,7 +85,13 @@ it( 'exposes a fake account endpoint that never hits the network', function (): 
 
     expect( $stats )->toBeInstanceOf( GrowthStats::class );
     expect( $stats->subscribers )->toBe( 0 );
-    expect( $series )->toBe( [] );
+
+    // The fake mirrors the real endpoint's contract: one zero-valued point per
+    // weekly bucket ( Jan 1-31 => 5 buckets ), not an empty array.
+    expect( $series )->toHaveCount( 5 );
+    expect( $series[0] )->toBeInstanceOf( GrowthStats::class );
+    expect( $series[0]->subscribers )->toBe( 0 );
+    expect( $series[0]->starting )->toBe( '2023-01-01' );
 
     Http::assertNothingSent();
 } );
